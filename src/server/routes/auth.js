@@ -1,5 +1,6 @@
 const express = require("express");
 const bcrypt = require("bcryptjs");
+// connection pool, handles multiple queries
 const { pool } = require("../db/connect");
 const {
   validateUser,
@@ -20,7 +21,7 @@ Router.post("/signup", async (req, res) => {
       "password",
     ];
     const receivedFields = Object.keys(req.body);
-
+    // check to see if fields are valid from `utils/common.js`
     const isInvalidFieldProvided = isInvalidField(
       receivedFields,
       validFieldsToUpdate
@@ -37,17 +38,20 @@ Router.post("/signup", async (req, res) => {
       [email]
     );
     const count = result.rows[0].count;
+    // if we are returned more than 0 results from our db, a user already exists with that email
     if (count > 0) {
       return res.status(400).send({
         signup_error: "User with this email address already exists.",
       });
     }
 
+    // bcrypt hashing users password
     const hashedPassword = await bcrypt.hash(password, 8);
     await pool.query(
       "insert into bank_user(first_name, last_name, email, password) values($1,$2,$3,$4)",
       [first_name, last_name, email, hashedPassword]
     );
+    // 201 signifies something was created, more appropriate than a 200
     res.status(201).send();
   } catch (error) {
     res.status(400).send({
